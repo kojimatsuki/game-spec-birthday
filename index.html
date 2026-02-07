@@ -38,8 +38,11 @@ body { font-family: 'Hiragino Sans','Meiryo','Yu Gothic',sans-serif; background:
 
 /* HUD */
 #hud { position:absolute; top:8px; left:8px; right:8px; z-index:40; display:none; font-size:clamp(0.7rem,2.5vw,0.9rem); color:#fff; text-shadow:1px 1px 2px rgba(0,0,0,0.5); }
-#hud-top { display:flex; justify-content:space-between; }
+#hud-top { display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px; }
 .hud-item { background:rgba(0,0,0,0.4); padding:4px 10px; border-radius:10px; }
+#hud-objective { background:rgba(0,0,0,0.5); padding:6px 12px; border-radius:10px; margin-top:6px; text-align:center; font-size:clamp(0.65rem,2.2vw,0.85rem); line-height:1.4; }
+#hud-exp-bar { width:100%; height:6px; background:rgba(255,255,255,0.2); border-radius:3px; margin-top:4px; overflow:hidden; }
+#hud-exp-fill { height:100%; background:linear-gradient(90deg,#FFD700,#FFA500); border-radius:3px; transition:width 0.3s; }
 
 /* D-Pad */
 #dpad { position:absolute; bottom:10px; left:15px; z-index:60; display:none; }
@@ -169,7 +172,10 @@ body { font-family: 'Hiragino Sans','Meiryo','Yu Gothic',sans-serif; background:
     <span class="hud-item" id="hud-level">Lv.1</span>
     <span class="hud-item" id="hud-exp">EXP: 0/10</span>
     <span class="hud-item" id="hud-pet"></span>
+    <span class="hud-item" id="hud-loop" style="display:none;"></span>
   </div>
+  <div id="hud-exp-bar"><div id="hud-exp-fill" style="width:0%"></div></div>
+  <div id="hud-objective">🎯 ペットをえらぼう！</div>
 </div>
 
 <!-- Field -->
@@ -299,7 +305,7 @@ const G = {
   phase: 0,
   level: 1,
   exp: 0,
-  expNext: 10,
+  expNext: 10, // flat 10 per level
   pet: null,
   petHP: 0,
   petMaxHP: 0,
@@ -551,27 +557,69 @@ function spawnConfetti() {
 function updateHUD() {
   $('hud-level').textContent = 'Lv.' + G.level;
   $('hud-exp').textContent = 'EXP: ' + G.exp + '/' + G.expNext;
+  $('hud-exp-fill').style.width = (G.exp / G.expNext * 100) + '%';
   if (G.pet) {
     $('hud-pet').textContent = PETS[G.pet].emoji + ' ' + PETS[G.pet].name;
     $('hud-pet').style.display = '';
   } else {
     $('hud-pet').style.display = 'none';
   }
+  if (G.loop > 0) {
+    $('hud-loop').style.display = '';
+    $('hud-loop').textContent = '🔄 ' + (G.loop + 1) + 'しゅうめ';
+  }
+  updateObjective();
+}
+
+function updateObjective() {
+  const obj = $('hud-objective');
+  if (!obj) return;
+  if (G.phase === 1) {
+    if (!G.petSelected) {
+      obj.textContent = '🎯 ペットをえらぼう！';
+    } else {
+      const nextMonster = MONSTERS.find(m => G.level >= m.lvReq && !G.defeatedMonsters.includes(m.id));
+      if (nextMonster) {
+        obj.textContent = '⚔️ ' + nextMonster.name + 'が あらわれそう… バトルにそなえよう！';
+      } else {
+        const next = MONSTERS.find(m => !G.defeatedMonsters.includes(m.id));
+        if (next) {
+          obj.textContent = '🎯 Lv.' + next.lvReq + 'で ' + next.name + ' が出現！ 動物に話しかけてEXPをためよう（あと' + Math.max(0, next.lvReq - G.level) + 'レベル）';
+        } else {
+          obj.textContent = '🎉 全ての怪獣をたおした！ 次のフェーズへ…';
+        }
+      }
+    }
+  } else if (G.phase === 3) {
+    const dest = ['ゆなちゃん','はなちゃん','ひーちゃん'][G.bikeSection] || '';
+    obj.textContent = '🏍️ ' + dest + 'のところへ！ 障害物をよけよう';
+  } else if (G.phase === 4) {
+    obj.textContent = '🏡 おにわで遊ぼう！';
+  } else if (G.phase === 5) {
+    obj.textContent = '🎂 おたんじょうびパーティー！';
+  }
 }
 
 function gainExp(amount) {
   G.exp += amount;
+  // Collect all level-ups first
+  const levelsGained = [];
   while (G.exp >= G.expNext) {
     G.exp -= G.expNext;
     G.level++;
-    G.expNext = G.level * 10;
+    G.expNext = 10; // flat 10 EXP per level
+    levelsGained.push(G.level);
+  }
+  updateHUD();
+
+  if (levelsGained.length > 0) {
+    const finalLevel = levelsGained[levelsGained.length - 1];
     playSfx('levelup');
-    showDialogue('', 'レベルアップ！ Lv.' + G.level + ' になった！✨', () => {
+    showDialogue('', 'レベルアップ！ Lv.' + finalLevel + ' になった！✨', () => {
       hideDialogue();
       checkMonsterSpawn();
     });
   }
-  updateHUD();
 }
 
 // ===== FIELD (PHASE 1) =====
@@ -644,7 +692,7 @@ function buildField() {
       const msg = msgs ? msgs[idx % msgs.length] : a.msg;
       showDialogue(a.emoji, msg, () => {
         hideDialogue();
-        if (G.petSelected) gainExp(3);
+        if (G.petSelected) gainExp(5);
       });
     });
     bg.appendChild(el);
@@ -766,21 +814,21 @@ document.querySelectorAll('.pet-option').forEach(el => {
 
 // ===== MONSTER SPAWN CHECK =====
 function checkMonsterSpawn() {
-  const available = MONSTERS.filter(m => G.level >= m.lvReq && !G.defeatedMonsters.includes(m.id));
-  if (available.length > 0) {
-    const monster = available[0];
-    setTimeout(() => {
+  // Delay slightly to avoid dialogue conflicts
+  setTimeout(() => {
+    const available = MONSTERS.filter(m => G.level >= m.lvReq && !G.defeatedMonsters.includes(m.id));
+    if (available.length > 0) {
+      const monster = available[0];
       dialogueSequence([
         ['⚠️', '目だらけの怪獣が あらわれた！'],
         ['', monster.name + 'だ！ バトルだ！'],
       ], () => {
         startBattle(monster);
       });
-    }, 500);
-  } else if (G.defeatedMonsters.length >= 3 && G.phase === 1) {
-    // All monsters defeated, move to phase 3
-    setTimeout(() => startPhase3(), 500);
-  }
+    } else if (G.defeatedMonsters.length >= 3 && G.phase === 1) {
+      setTimeout(() => startPhase3(), 500);
+    }
+  }, 300);
 }
 
 // ===== BATTLE (PHASE 2) =====
@@ -939,7 +987,7 @@ function battleVictory() {
     ], () => {
       spawnConfetti();
       hide('battle');
-      gainExp(10);
+      gainExp(15);
 
       if (G.defeatedMonsters.length >= 3) {
         setTimeout(() => startPhase3(), 1000);
@@ -951,6 +999,8 @@ function battleVictory() {
         $('action-btn').style.display = 'block';
         startBGM('field');
         updateHUD();
+        // Check if the gained EXP already qualifies for next monster
+        setTimeout(() => checkMonsterSpawn(), 500);
       }
     });
   }, 1500);
@@ -982,6 +1032,8 @@ function startBikeSection(section) {
 
   hideAll();
   show('bike-scene');
+  show('hud');
+  updateHUD();
 
   const destinations = ['ゆなちゃんの家', 'はなちゃんの家', 'ひーちゃんの家'];
   const bgColors = [
@@ -1255,6 +1307,8 @@ function startPhase4() {
     hideAll();
     startBGM('garden');
     show('garden');
+    show('hud');
+    updateHUD();
     const sunsetProgress = { v: 0 };
 
     $('garden-content').innerHTML = `
@@ -1461,7 +1515,7 @@ function resetForLoop() {
   G.phase = 0;
   G.level = 1;
   G.exp = 0;
-  G.expNext = 10;
+  G.expNext = 10; // flat
   G.petHP = G.petMaxHP;
   G.petSelected = false;
   G.pet = null;
@@ -1474,6 +1528,7 @@ function resetForLoop() {
   G.playerY = 5;
   G.battleActive = false;
   G.gardenProgress = 0;
+  G._dodgeNext = false;
 }
 
 // ===== LETTER / TRUE ENDING =====
