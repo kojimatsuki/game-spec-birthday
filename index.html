@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ひかりちゃんのハッピーバースデー 〜箱の中の秘密〜</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; touch-action:manipulation; -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+body { font-family: 'Hiragino Sans','Meiryo','Yu Gothic',sans-serif; background:#000; }
+#game { position:relative; width:100%; height:100%; overflow:hidden; }
+
+/* Title Screen */
+#title-screen { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background:linear-gradient(180deg,#87CEEB 0%,#98FB98 100%); z-index:100; }
+#title-screen h1 { font-size:clamp(1.2rem,5vw,2rem); text-align:center; color:#333; margin-bottom:0.5em; text-shadow:2px 2px 0 #fff; line-height:1.4; }
+#title-screen .subtitle { font-size:clamp(0.9rem,3vw,1.3rem); color:#666; margin-bottom:1.5em; }
+#title-screen .emojis { font-size:2.5rem; margin-bottom:1em; }
+.btn { padding:12px 32px; font-size:1.1rem; border:none; border-radius:25px; cursor:pointer; font-family:inherit; transition:transform 0.1s; }
+.btn:active { transform:scale(0.95); }
+.btn-primary { background:#FF6B9D; color:#fff; box-shadow:0 4px 0 #CC5580; }
+.btn-primary:active { box-shadow:0 2px 0 #CC5580; transform:translateY(2px) scale(0.98); }
+.btn-secondary { background:#4ECDC4; color:#fff; box-shadow:0 4px 0 #3BA89F; margin:5px; }
+
+/* Dialogue Box */
+#dialogue { position:absolute; bottom:80px; left:5%; right:5%; background:rgba(255,255,255,0.95); border-radius:15px; padding:15px 20px; font-size:clamp(0.85rem,3vw,1.1rem); color:#333; z-index:50; display:none; box-shadow:0 4px 15px rgba(0,0,0,0.2); line-height:1.6; }
+#dialogue .speaker { font-weight:bold; color:#FF6B9D; margin-bottom:4px; }
+#dialogue .tap-hint { font-size:0.7em; color:#aaa; text-align:right; margin-top:4px; }
+
+/* Field (Phase 1) */
+#field { position:absolute; inset:0; display:none; overflow:hidden; }
+#field-bg { position:absolute; inset:0; }
+.field-tile { position:absolute; font-size:1.5rem; pointer-events:none; }
+.field-entity { position:absolute; font-size:2rem; cursor:pointer; transition:left 0.15s, top 0.15s; z-index:10; }
+#player { z-index:20; }
+#pet-follow { z-index:19; display:none; }
+.hidden-door { display:none; font-size:2.5rem; cursor:pointer; z-index:15; animation:doorGlow 2s infinite; }
+@keyframes doorGlow { 0%,100%{filter:brightness(1);} 50%{filter:brightness(1.5) drop-shadow(0 0 10px #ff0);} }
+
+/* HUD */
+#hud { position:absolute; top:8px; left:8px; right:8px; z-index:40; display:none; font-size:clamp(0.7rem,2.5vw,0.9rem); color:#fff; text-shadow:1px 1px 2px rgba(0,0,0,0.5); }
+#hud-top { display:flex; justify-content:space-between; }
+.hud-item { background:rgba(0,0,0,0.4); padding:4px 10px; border-radius:10px; }
+
+/* D-Pad */
+#dpad { position:absolute; bottom:10px; left:15px; z-index:60; display:none; }
+#dpad button { position:absolute; width:50px; height:50px; border:none; border-radius:12px; background:rgba(255,255,255,0.5); font-size:1.3rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+#dpad button:active { background:rgba(255,255,255,0.8); }
+#dpad-up { left:50px; top:0; }
+#dpad-down { left:50px; top:100px; }
+#dpad-left { left:0; top:50px; }
+#dpad-right { left:100px; top:50px; }
+#action-btn { position:absolute; bottom:60px; right:20px; width:60px; height:60px; border:none; border-radius:50%; background:rgba(255,107,157,0.7); color:#fff; font-size:0.8rem; font-weight:bold; cursor:pointer; z-index:60; display:none; }
+
+/* Pet Select */
+#pet-select { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; background:rgba(255,255,255,0.95); z-index:70; }
+#pet-select h2 { margin-bottom:20px; color:#333; font-size:clamp(1rem,4vw,1.5rem); }
+.pet-option { display:inline-flex; flex-direction:column; align-items:center; margin:10px; padding:15px; border-radius:15px; border:3px solid #eee; cursor:pointer; background:#fff; transition:all 0.2s; }
+.pet-option:hover,.pet-option:active { border-color:#FF6B9D; transform:scale(1.05); }
+.pet-option .emoji { font-size:3rem; }
+.pet-option .name { font-size:0.9rem; color:#333; margin-top:5px; }
+.pet-option .type { font-size:0.7rem; color:#888; }
+
+/* Battle */
+#battle { position:absolute; inset:0; display:none; flex-direction:column; z-index:70; }
+#battle-bg { position:absolute; inset:0; background:linear-gradient(180deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%); }
+#battle-top { position:relative; z-index:1; padding:15px; }
+#battle-bottom { position:relative; z-index:1; padding:15px; margin-top:auto; }
+.battle-entity { display:flex; align-items:center; margin-bottom:10px; }
+.battle-entity .emoji { font-size:3rem; margin-right:10px; }
+.battle-entity .info { flex:1; }
+.battle-entity .name { color:#fff; font-weight:bold; font-size:0.9rem; }
+.hp-bar { width:100%; height:12px; background:rgba(255,255,255,0.2); border-radius:6px; overflow:hidden; margin-top:4px; }
+.hp-fill { height:100%; background:linear-gradient(90deg,#4CAF50,#8BC34A); border-radius:6px; transition:width 0.5s; }
+.hp-fill.low { background:linear-gradient(90deg,#f44336,#ff5722); }
+.hp-text { color:#ccc; font-size:0.75rem; margin-top:2px; }
+#battle-msg { color:#fff; text-align:center; font-size:1rem; padding:20px; min-height:60px; position:relative; z-index:1; }
+#battle-actions { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; position:relative; z-index:1; padding:10px; }
+.battle-btn { padding:10px 20px; font-size:0.95rem; border:none; border-radius:12px; cursor:pointer; color:#fff; font-family:inherit; min-width:120px; }
+.battle-btn:active { transform:scale(0.95); }
+.battle-btn.atk { background:#e74c3c; }
+.battle-btn.special { background:#9b59b6; }
+
+/* Bike Scene */
+#bike-scene { position:absolute; inset:0; display:none; overflow:hidden; }
+#bike-road { position:absolute; bottom:0; left:0; right:0; height:40%; }
+#bike-player { position:absolute; font-size:2.5rem; z-index:10; transition:top 0.15s; }
+.bike-obstacle { position:absolute; font-size:2rem; z-index:5; }
+#bike-distance { position:absolute; top:15px; right:15px; color:#fff; font-size:1rem; background:rgba(0,0,0,0.4); padding:5px 12px; border-radius:10px; z-index:20; }
+#bike-lane-btns { position:absolute; bottom:20px; left:0; right:0; display:flex; justify-content:center; gap:20px; z-index:20; }
+#bike-lane-btns button { width:70px; height:70px; border:none; border-radius:50%; background:rgba(255,255,255,0.5); font-size:1.5rem; cursor:pointer; }
+
+/* Mini Event */
+#mini-event { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; z-index:70; }
+#mini-event-content { text-align:center; color:#fff; padding:20px; }
+#mini-event-content h2 { font-size:1.3rem; margin-bottom:15px; }
+#mini-event-content p { font-size:1rem; margin-bottom:15px; line-height:1.6; }
+
+/* Garden (Phase 4) */
+#garden { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; z-index:70; }
+#garden-content { text-align:center; width:100%; padding:20px; }
+#garden-content h2 { color:#fff; margin-bottom:15px; font-size:1.2rem; }
+#race-bar { width:80%; max-width:300px; height:20px; background:rgba(255,255,255,0.3); border-radius:10px; margin:15px auto; overflow:hidden; }
+#race-fill { width:0%; height:100%; background:linear-gradient(90deg,#FF6B9D,#FF9A76); border-radius:10px; transition:width 0.1s; }
+#race-tap { font-size:1rem; color:#fff; }
+
+/* Birthday (Phase 5) */
+#birthday { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; z-index:70; }
+#birthday-content { text-align:center; padding:20px; }
+.candle { font-size:3rem; display:inline-block; animation:candleFlicker 0.3s infinite alternate; }
+@keyframes candleFlicker { from{transform:scaleY(1);} to{transform:scaleY(1.1);} }
+#present-box { font-size:6rem; cursor:pointer; display:inline-block; animation:boxBounce 1s infinite; }
+@keyframes boxBounce { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-10px);} }
+
+/* Horror */
+#horror-overlay { position:absolute; inset:0; background:rgba(139,0,0,0); z-index:75; pointer-events:none; transition:background 2s; }
+#horror-overlay.active { background:rgba(139,0,0,0.6); pointer-events:auto; }
+
+/* Escape Scene */
+#escape { position:absolute; inset:0; display:none; overflow:hidden; background:#0a0a0a; z-index:70; }
+#escape-runner { position:absolute; bottom:30%; left:20%; font-size:2.5rem; z-index:10; animation:runBounce 0.3s infinite alternate; }
+@keyframes runBounce { from{transform:translateY(0);} to{transform:translateY(-5px);} }
+.escape-eye { position:absolute; font-size:1.5rem; z-index:5; animation:eyeBlink 3s infinite; opacity:0; }
+@keyframes eyeBlink { 0%,45%,55%,100%{opacity:0;} 50%{opacity:1;} }
+
+/* Loop Message */
+#loop-msg { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; background:#000; z-index:80; color:#fff; text-align:center; padding:20px; }
+#loop-msg p { font-size:1.1rem; margin-bottom:15px; line-height:1.8; }
+
+/* True Ending */
+#true-ending { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; z-index:90; padding:20px; text-align:center; }
+#true-ending h2 { font-size:1.3rem; margin-bottom:15px; }
+#true-ending p { font-size:1rem; margin-bottom:12px; line-height:1.8; }
+
+/* Letter / Choice */
+#letter-screen { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; background:rgba(0,0,0,0.9); z-index:85; padding:20px; }
+#letter-content { background:#f5f0e0; color:#333; padding:25px; border-radius:10px; max-width:350px; font-size:0.95rem; line-height:1.8; margin-bottom:20px; box-shadow:0 5px 30px rgba(0,0,0,0.5); }
+#letter-choices { display:flex; flex-direction:column; gap:10px; }
+
+/* Celebration */
+.confetti { position:absolute; width:8px; height:8px; z-index:100; pointer-events:none; animation:confettiFall 2s linear forwards; }
+@keyframes confettiFall { from{transform:translateY(-20px) rotate(0deg); opacity:1;} to{transform:translateY(100vh) rotate(720deg); opacity:0;} }
+
+/* Transition */
+#transition { position:absolute; inset:0; background:#000; z-index:95; display:none; opacity:0; transition:opacity 0.8s; }
+#transition.active { opacity:1; }
+
+/* Transform indicator */
+#transform-indicator { position:absolute; top:50px; left:50%; transform:translateX(-50%); background:rgba(255,215,0,0.9); color:#333; padding:5px 15px; border-radius:15px; font-size:0.8rem; z-index:45; display:none; }
+
+/* Wait counter */
+#wait-counter { position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center; background:rgba(0,0,0,0.8); z-index:75; color:#fff; text-align:center; }
+#wait-counter .timer { font-size:3rem; margin:20px 0; }
+</style>
+</head>
+<body>
+<div id="game">
+
+<!-- Title -->
+<div id="title-screen">
+  <div class="emojis">🐱🐕🐰🐻✨</div>
+  <h1>ひかりちゃんの<br>ハッピーバースデー</h1>
+  <div class="subtitle">〜箱の中の秘密〜</div>
+  <button class="btn btn-primary" id="start-btn">はじめる</button>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="hud-top">
+    <span class="hud-item" id="hud-level">Lv.1</span>
+    <span class="hud-item" id="hud-exp">EXP: 0/10</span>
+    <span class="hud-item" id="hud-pet"></span>
+  </div>
+</div>
+
+<!-- Field -->
+<div id="field">
+  <div id="field-bg"></div>
+  <div id="player" class="field-entity">👧</div>
+  <div id="pet-follow" class="field-entity"></div>
+  <div id="hidden-door" class="field-entity hidden-door">🚪</div>
+</div>
+
+<!-- Dialogue -->
+<div id="dialogue">
+  <div class="speaker"></div>
+  <div class="text"></div>
+  <div class="tap-hint">▼ タップで次へ</div>
+</div>
+
+<!-- D-Pad & Action -->
+<div id="dpad">
+  <button id="dpad-up">▲</button>
+  <button id="dpad-down">▼</button>
+  <button id="dpad-left">◀</button>
+  <button id="dpad-right">▶</button>
+</div>
+<button id="action-btn">はなす</button>
+
+<!-- Pet Select -->
+<div id="pet-select">
+  <h2>ペットをえらぼう！</h2>
+  <div style="display:flex;flex-wrap:wrap;justify-content:center;">
+    <div class="pet-option" data-pet="cat"><div class="emoji">🐱</div><div class="name">ねこ</div><div class="type">すばやさ型</div></div>
+    <div class="pet-option" data-pet="dog"><div class="emoji">🐕</div><div class="name">いぬ</div><div class="type">バランス型</div></div>
+    <div class="pet-option" data-pet="rabbit"><div class="emoji">🐰</div><div class="name">うさぎ</div><div class="type">テクニック型</div></div>
+    <div class="pet-option" data-pet="bear"><div class="emoji">🐻</div><div class="name">くま</div><div class="type">パワー型</div></div>
+  </div>
+</div>
+
+<!-- Battle -->
+<div id="battle">
+  <div id="battle-bg"></div>
+  <div id="battle-top">
+    <div class="battle-entity" id="enemy-display">
+      <div class="emoji" id="enemy-emoji"></div>
+      <div class="info">
+        <div class="name" id="enemy-name"></div>
+        <div class="hp-bar"><div class="hp-fill" id="enemy-hp"></div></div>
+        <div class="hp-text" id="enemy-hp-text"></div>
+      </div>
+    </div>
+  </div>
+  <div id="battle-msg"></div>
+  <div id="battle-bottom">
+    <div class="battle-entity" id="pet-display">
+      <div class="emoji" id="pet-emoji"></div>
+      <div class="info">
+        <div class="name" id="pet-name"></div>
+        <div class="hp-bar"><div class="hp-fill" id="pet-hp"></div></div>
+        <div class="hp-text" id="pet-hp-text"></div>
+      </div>
+    </div>
+    <div id="battle-actions"></div>
+  </div>
+</div>
+
+<!-- Bike Scene -->
+<div id="bike-scene">
+  <div id="bike-road"></div>
+  <div id="bike-player">🏍️👧</div>
+  <div id="bike-distance"></div>
+  <div id="bike-lane-btns">
+    <button id="bike-up">▲</button>
+    <button id="bike-down">▼</button>
+  </div>
+</div>
+
+<!-- Mini Event -->
+<div id="mini-event">
+  <div id="mini-event-content"></div>
+</div>
+
+<!-- Wait Counter -->
+<div id="wait-counter">
+  <h2 style="font-size:1.2rem;">ゆなちゃんの家で待っています…</h2>
+  <div class="timer" id="wait-timer">5</div>
+  <p style="font-size:0.9rem;">変身の力がたまっています✨</p>
+</div>
+
+<!-- Garden -->
+<div id="garden">
+  <div id="garden-content"></div>
+</div>
+
+<!-- Birthday -->
+<div id="birthday">
+  <div id="birthday-content"></div>
+</div>
+
+<!-- Horror Overlay -->
+<div id="horror-overlay"></div>
+
+<!-- Escape -->
+<div id="escape">
+  <div id="escape-runner">🏃‍♀️</div>
+</div>
+
+<!-- Loop Message -->
+<div id="loop-msg"></div>
+
+<!-- Letter Screen -->
+<div id="letter-screen">
+  <div id="letter-content"></div>
+  <div id="letter-choices"></div>
+</div>
+
+<!-- True Ending -->
+<div id="true-ending"></div>
+
+<!-- Transition -->
+<div id="transition"></div>
+
+</div>
+
+<script>
+// ===== GAME STATE =====
+const G = {
+  loop: 0,
+  phase: 0,
+  level: 1,
+  exp: 0,
+  expNext: 10,
+  pet: null,
+  petHP: 0,
+  petMaxHP: 0,
+  team: [],
+  friends: [],
+  transformed: false,
+  transformType: null,
+  canTransform: false,
+  defeatedMonsters: [],
+  playerX: 5,
+  playerY: 5,
+  fieldW: 11,
+  fieldH: 9,
+  entities: [],
+  petSelected: false,
+  bikeLane: 1,
+  bikeDistance: 0,
+  bikeTarget: 100,
+  bikeSection: 0,
+  bikeObstacles: [],
+  bikeRunning: false,
+  battleActive: false,
+  currentEnemy: null,
+  enemyHP: 0,
+  enemyMaxHP: 0,
+  gardenProgress: 0,
+  candlesLit: true,
+  dialogueQueue: [],
+  dialogueCallback: null,
+  moveInterval: null,
+  audioCtx: null,
+  bgmOsc: null,
+  bgmGain: null,
+  lastBgm: null,
+};
+
+// ===== AUDIO =====
+function initAudio() {
+  if (G.audioCtx) return;
+  G.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function playNote(freq, dur, type='sine', vol=0.15) {
+  if (!G.audioCtx) return;
+  const o = G.audioCtx.createOscillator();
+  const g = G.audioCtx.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.value = vol;
+  g.gain.exponentialRampToValueAtTime(0.001, G.audioCtx.currentTime + dur);
+  o.connect(g);
+  g.connect(G.audioCtx.destination);
+  o.start();
+  o.stop(G.audioCtx.currentTime + dur);
+}
+
+function playSfx(name) {
+  initAudio();
+  switch(name) {
+    case 'tap': playNote(800, 0.1, 'sine', 0.1); break;
+    case 'select': playNote(523, 0.1); setTimeout(()=>playNote(659, 0.1), 80); setTimeout(()=>playNote(784, 0.15), 160); break;
+    case 'hit': playNote(200, 0.15, 'sawtooth', 0.15); break;
+    case 'heal': playNote(523, 0.15); setTimeout(()=>playNote(659, 0.15), 100); setTimeout(()=>playNote(784, 0.2), 200); break;
+    case 'victory': [523,659,784,1047].forEach((f,i)=>setTimeout(()=>playNote(f,0.3),i*150)); break;
+    case 'levelup': [440,554,659,880].forEach((f,i)=>setTimeout(()=>playNote(f,0.25,'triangle'),i*120)); break;
+    case 'heartbeat': playNote(60, 0.4, 'sine', 0.3); setTimeout(()=>playNote(55, 0.3, 'sine', 0.25), 200); break;
+    case 'horror': playNote(80, 2, 'sawtooth', 0.08); playNote(83, 2, 'sawtooth', 0.08); break;
+    case 'door': playNote(300, 0.2, 'square', 0.1); setTimeout(()=>playNote(400,0.3,'square',0.1),150); break;
+    case 'crash': playNote(100, 0.3, 'sawtooth', 0.2); playNote(150, 0.2, 'square', 0.15); break;
+  }
+}
+
+let bgmInterval = null;
+function startBGM(type) {
+  stopBGM();
+  initAudio();
+  G.lastBgm = type;
+  const tempoMod = 1 - G.loop * 0.03;
+  const pitchMod = 1 - G.loop * 0.02;
+  switch(type) {
+    case 'field': {
+      const notes = [523,587,659,698,784,698,659,587];
+      let i = 0;
+      bgmInterval = setInterval(() => {
+        playNote(notes[i % notes.length] * pitchMod, 0.25, 'sine', 0.06);
+        if (i % 2 === 0) playNote(262 * pitchMod, 0.5, 'triangle', 0.04);
+        i++;
+      }, 350 / tempoMod);
+      break;
+    }
+    case 'battle': {
+      const notes = [330,392,440,494,440,392,330,262];
+      let i = 0;
+      bgmInterval = setInterval(() => {
+        playNote(notes[i % notes.length] * pitchMod, 0.15, 'square', 0.05);
+        if (i % 2 === 0) playNote(165 * pitchMod, 0.3, 'sawtooth', 0.04);
+        i++;
+      }, 200 / tempoMod);
+      break;
+    }
+    case 'bike': {
+      const notes = [440,523,587,659,587,523];
+      let i = 0;
+      bgmInterval = setInterval(() => {
+        playNote(notes[i % notes.length] * pitchMod, 0.12, 'sawtooth', 0.05);
+        i++;
+      }, 180 / tempoMod);
+      break;
+    }
+    case 'garden': {
+      const notes = [392,440,494,523,494,440,392,349];
+      let i = 0;
+      bgmInterval = setInterval(() => {
+        playNote(notes[i % notes.length] * pitchMod, 0.4, 'sine', 0.05);
+        i++;
+      }, 500 / tempoMod);
+      break;
+    }
+    case 'birthday': {
+      const notes = [262,262,294,262,349,330,262,262,294,262,392,349];
+      let i = 0;
+      bgmInterval = setInterval(() => {
+        playNote(notes[i % notes.length] * pitchMod, 0.3, 'sine', 0.07);
+        i++;
+        if (i >= notes.length) i = 0;
+      }, 400 / tempoMod);
+      break;
+    }
+    case 'escape': {
+      let i = 0;
+      bgmInterval = setInterval(() => {
+        playNote(80 + Math.random() * 40, 0.5, 'sawtooth', 0.04);
+        if (i % 3 === 0) playNote(60, 0.8, 'sine', 0.06);
+        i++;
+      }, 600);
+      break;
+    }
+  }
+}
+
+function stopBGM() {
+  if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
+  G.lastBgm = null;
+}
+
+// ===== DOM HELPERS =====
+const $ = id => document.getElementById(id);
+function show(id) { $(id).style.display = 'flex'; }
+function hide(id) { $(id).style.display = 'none'; }
+function showBlock(id) { $(id).style.display = 'block'; }
+
+// ===== PETS DATA =====
+const PETS = {
+  cat:    { name:'ねこ', emoji:'🐱', hp:30, atk:8, def:4, spd:10, skill1:'ねこパンチ', skill2:'すばやい回避', s1type:'atk', s2type:'dodge' },
+  dog:    { name:'いぬ', emoji:'🐕', hp:35, atk:9, def:6, spd:7,  skill1:'かみつき', skill2:'遠吠え', s1type:'atk', s2type:'buff' },
+  rabbit: { name:'うさぎ', emoji:'🐰', hp:28, atk:10, def:3, spd:9, skill1:'ジャンプキック', skill2:'穴掘り', s1type:'atk', s2type:'dodge' },
+  bear:   { name:'くま', emoji:'🐻', hp:45, atk:12, def:8, spd:4, skill1:'くまパンチ', skill2:'ハグ', s1type:'atk', s2type:'heal' },
+};
+
+const MONSTERS = [
+  { id:'baby',  name:'目玉ベビー', emoji:'👁️', lvReq:2, hp:25, atk:6, def:3, eyes:10 },
+  { id:'king',  name:'目玉キング', emoji:'👁️👁️👁️', lvReq:4, hp:50, atk:10, def:5, eyes:100 },
+  { id:'dragon',name:'目玉ドラゴン', emoji:'👁️🐉', lvReq:6, hp:80, atk:14, def:7, eyes:999 },
+];
+
+const ANIMALS = [
+  { emoji:'🐱', msg:'にゃー！', x:2, y:2 },
+  { emoji:'🐕', msg:'わん！', x:8, y:3 },
+  { emoji:'🐰', msg:'ぴょん！', x:4, y:6 },
+  { emoji:'🐻', msg:'がおー', x:7, y:7 },
+  { emoji:'🐦', msg:'ピピピ！', x:1, y:4 },
+  { emoji:'🐸', msg:'ケロケロ！', x:9, y:1 },
+  { emoji:'🦊', msg:'コンコン！', x:3, y:8 },
+];
+
+const LOOP_ANIMALS_MSGS = {
+  3: ['にゃ…ー…', 'わ…ん…', 'ぴょ…ん…', 'が…おー…', 'ピ…ピ…ピ…', 'ケロ…ケロ…', 'コン…コン…'],
+  4: ['ニャ̢̬̺̺ー̵̱̼̗', 'ワ̷̘̗̣ン̴̳̬̥', 'ピョ̶̰̯̫ン̵̰̗̘', 'ガ̷̬̺̘オ̴̰̗̰ー', 'ピ…', 'ケ…ロ…', 'コ…ン…'],
+};
+
+// ===== DIALOGUE SYSTEM =====
+function showDialogue(speaker, text, cb) {
+  const d = $('dialogue');
+  d.style.display = 'block';
+  d.querySelector('.speaker').textContent = speaker;
+  d.querySelector('.text').textContent = text;
+  G.dialogueCallback = cb || null;
+}
+
+function hideDialogue() {
+  $('dialogue').style.display = 'none';
+  G.dialogueCallback = null;
+}
+
+function dialogueSequence(msgs, finalCb) {
+  G.dialogueQueue = msgs.slice();
+  G.dialogueCallback = () => {
+    if (G.dialogueQueue.length > 0) {
+      const m = G.dialogueQueue.shift();
+      showDialogue(m[0], m[1], G.dialogueCallback);
+    } else {
+      hideDialogue();
+      if (finalCb) finalCb();
+    }
+  };
+  const first = G.dialogueQueue.shift();
+  showDialogue(first[0], first[1], G.dialogueCallback);
+}
+
+$('dialogue').addEventListener('click', () => {
+  playSfx('tap');
+  if (G.dialogueCallback) G.dialogueCallback();
+});
+
+// ===== TRANSITION =====
+function transition(cb) {
+  const t = $('transition');
+  t.style.display = 'block';
+  t.style.opacity = '0';
+  requestAnimationFrame(() => {
+    t.classList.add('active');
+    setTimeout(() => {
+      if (cb) cb();
+      setTimeout(() => {
+        t.classList.remove('active');
+        setTimeout(() => { t.style.display = 'none'; }, 800);
+      }, 300);
+    }, 800);
+  });
+}
+
+// ===== CONFETTI =====
+function spawnConfetti() {
+  const colors = ['#FF6B9D','#4ECDC4','#FFE66D','#A8E6CF','#FF8B94','#B5EAD7'];
+  for (let i = 0; i < 40; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + '%';
+    c.style.top = '-10px';
+    c.style.background = colors[Math.floor(Math.random() * colors.length)];
+    c.style.animationDelay = Math.random() * 1 + 's';
+    c.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+    $('game').appendChild(c);
+    setTimeout(() => c.remove(), 3000);
+  }
+}
+
+// ===== HUD =====
+function updateHUD() {
+  $('hud-level').textContent = 'Lv.' + G.level;
+  $('hud-exp').textContent = 'EXP: ' + G.exp + '/' + G.expNext;
+  if (G.pet) {
+    $('hud-pet').textContent = PETS[G.pet].emoji + ' ' + PETS[G.pet].name;
+    $('hud-pet').style.display = '';
+  } else {
+    $('hud-pet').style.display = 'none';
+  }
+}
+
+function gainExp(amount) {
+  G.exp += amount;
+  while (G.exp >= G.expNext) {
+    G.exp -= G.expNext;
+    G.level++;
+    G.expNext = G.level * 10;
+    playSfx('levelup');
+    showDialogue('', 'レベルアップ！ Lv.' + G.level + ' になった！✨', () => {
+      hideDialogue();
+      checkMonsterSpawn();
+    });
+  }
+  updateHUD();
+}
+
+// ===== FIELD (PHASE 1) =====
+function buildField() {
+  const bg = $('field-bg');
+  bg.innerHTML = '';
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const tileW = w / G.fieldW;
+  const tileH = h / G.fieldH;
+
+  const darkness = Math.min(G.loop * 0.08, 0.4);
+  const fieldBg = `linear-gradient(180deg,
+    rgba(${135-G.loop*15},${206-G.loop*15},${235-G.loop*10},1) 0%,
+    rgba(${152-G.loop*15},${251-G.loop*15},${152-G.loop*10},1) 100%)`;
+  $('field').style.background = fieldBg;
+
+  if (darkness > 0) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `position:absolute;inset:0;background:rgba(0,0,0,${darkness});pointer-events:none;z-index:1;`;
+    bg.appendChild(overlay);
+  }
+
+  const decorations = ['🌸','🌳','🌻','🌿','💐','🍀'];
+  for (let i = 0; i < 20; i++) {
+    const d = document.createElement('div');
+    d.className = 'field-tile';
+    d.style.left = Math.random() * (w - 30) + 'px';
+    d.style.top = Math.random() * (h - 30) + 'px';
+    d.textContent = decorations[Math.floor(Math.random() * decorations.length)];
+    d.style.opacity = Math.max(0.3, 0.7 - G.loop * 0.1);
+    bg.appendChild(d);
+  }
+
+  // Loop 4+: eyes in background
+  if (G.loop >= 3) {
+    const eyeCount = Math.min((G.loop - 2) * 3, 12);
+    for (let i = 0; i < eyeCount; i++) {
+      const eye = document.createElement('div');
+      eye.className = 'field-tile';
+      eye.textContent = '👁️';
+      eye.style.left = Math.random() * (w - 30) + 'px';
+      eye.style.top = Math.random() * (h - 30) + 'px';
+      eye.style.opacity = '0';
+      eye.style.animation = `eyeBlink ${3 + Math.random()*4}s infinite`;
+      eye.style.animationDelay = Math.random() * 5 + 's';
+      eye.style.fontSize = '1.2rem';
+      bg.appendChild(eye);
+    }
+  }
+
+  // Place animals
+  G.entities = [];
+  ANIMALS.forEach((a, idx) => {
+    const el = document.createElement('div');
+    el.className = 'field-entity';
+    el.textContent = a.emoji;
+    el.style.left = a.x * tileW + 'px';
+    el.style.top = a.y * tileH + 'px';
+    el.dataset.idx = idx;
+
+    // Loop 3+: bigger eyes on animals
+    if (G.loop >= 2) {
+      el.style.fontSize = (2 + G.loop * 0.3) + 'rem';
+    }
+
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const msgs = LOOP_ANIMALS_MSGS[Math.min(G.loop + 1, 4)];
+      const msg = msgs ? msgs[idx % msgs.length] : a.msg;
+      showDialogue(a.emoji, msg, () => {
+        hideDialogue();
+        if (G.petSelected) gainExp(3);
+      });
+    });
+    bg.appendChild(el);
+    G.entities.push({ el, x: a.x, y: a.y });
+  });
+
+  // Hidden door (loop 5+)
+  const door = $('hidden-door');
+  if (G.loop >= 4) {
+    door.style.display = 'block';
+    door.style.left = (G.fieldW - 1) * tileW + 'px';
+    door.style.top = 0 + 'px';
+    door.style.position = 'absolute';
+    door.style.zIndex = '15';
+  } else {
+    door.style.display = 'none';
+  }
+
+  updatePlayerPos();
+}
+
+function updatePlayerPos() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const tileW = w / G.fieldW;
+  const tileH = h / G.fieldH;
+  $('player').style.left = G.playerX * tileW + 'px';
+  $('player').style.top = G.playerY * tileH + 'px';
+
+  if (G.pet) {
+    $('pet-follow').style.display = 'block';
+    $('pet-follow').textContent = G.transformed ? PETS[G.pet].emoji : PETS[G.pet].emoji;
+    $('pet-follow').style.left = (G.playerX - 1) * tileW + 'px';
+    $('pet-follow').style.top = G.playerY * tileH + 'px';
+  }
+
+  // Check door
+  if (G.loop >= 4 && G.playerX === G.fieldW - 1 && G.playerY === 0) {
+    playSfx('door');
+    openLetterScreen();
+  }
+}
+
+function movePlayer(dx, dy) {
+  const nx = G.playerX + dx;
+  const ny = G.playerY + dy;
+  if (nx >= 0 && nx < G.fieldW && ny >= 0 && ny < G.fieldH) {
+    G.playerX = nx;
+    G.playerY = ny;
+    updatePlayerPos();
+  }
+}
+
+// D-Pad
+['up','down','left','right'].forEach(dir => {
+  const btn = $('dpad-' + dir);
+  const dirs = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
+
+  const startMove = (e) => {
+    e.preventDefault();
+    movePlayer(...dirs[dir]);
+    G.moveInterval = setInterval(() => movePlayer(...dirs[dir]), 200);
+  };
+  const stopMove = (e) => {
+    e.preventDefault();
+    if (G.moveInterval) { clearInterval(G.moveInterval); G.moveInterval = null; }
+  };
+
+  btn.addEventListener('touchstart', startMove, {passive:false});
+  btn.addEventListener('mousedown', startMove);
+  btn.addEventListener('touchend', stopMove, {passive:false});
+  btn.addEventListener('touchcancel', stopMove, {passive:false});
+  btn.addEventListener('mouseup', stopMove);
+  btn.addEventListener('mouseleave', stopMove);
+});
+
+// Keyboard
+document.addEventListener('keydown', (e) => {
+  const dirs = { ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0], w:[0,-1], s:[0,1], a:[-1,0], d:[1,0] };
+  if (dirs[e.key] && G.phase === 1) {
+    movePlayer(...dirs[e.key]);
+  }
+  if (e.key === ' ' || e.key === 'Enter') {
+    if ($('dialogue').style.display !== 'none' && G.dialogueCallback) {
+      G.dialogueCallback();
+    }
+  }
+});
+
+// ===== PET SELECTION =====
+document.querySelectorAll('.pet-option').forEach(el => {
+  el.addEventListener('click', () => {
+    const petId = el.dataset.pet;
+    G.pet = petId;
+    G.petSelected = true;
+    const p = PETS[petId];
+    G.petHP = p.hp;
+    G.petMaxHP = p.hp;
+    G.team = [petId];
+    playSfx('select');
+    hide('pet-select');
+    showBlock('field');
+    show('hud');
+    $('dpad').style.display = 'block';
+    $('action-btn').style.display = 'block';
+    $('pet-follow').style.display = 'block';
+    $('pet-follow').textContent = p.emoji;
+    updateHUD();
+    updatePlayerPos();
+    dialogueSequence([
+      [p.emoji, p.name + 'が なかまになった！'],
+      ['👧', p.name + 'と いっしょに ぼうけんしよう！'],
+      ['', '動物たちに はなしかけて EXPを ためよう！'],
+    ], () => {
+      gainExp(5);
+    });
+  });
+});
+
+// ===== MONSTER SPAWN CHECK =====
+function checkMonsterSpawn() {
+  const available = MONSTERS.filter(m => G.level >= m.lvReq && !G.defeatedMonsters.includes(m.id));
+  if (available.length > 0) {
+    const monster = available[0];
+    setTimeout(() => {
+      dialogueSequence([
+        ['⚠️', '目だらけの怪獣が あらわれた！'],
+        ['', monster.name + 'だ！ バトルだ！'],
+      ], () => {
+        startBattle(monster);
+      });
+    }, 500);
+  } else if (G.defeatedMonsters.length >= 3 && G.phase === 1) {
+    // All monsters defeated, move to phase 3
+    setTimeout(() => startPhase3(), 500);
+  }
+}
+
+// ===== BATTLE (PHASE 2) =====
+function startBattle(monster) {
+  G.phase = 2;
+  G.battleActive = true;
+  G.currentEnemy = monster;
+  G.enemyHP = monster.hp;
+  G.enemyMaxHP = monster.hp;
+  G.petHP = G.petMaxHP;
+
+  hide('field');
+  hide('hud');
+  $('dpad').style.display = 'none';
+  $('action-btn').style.display = 'none';
+  show('battle');
+  startBGM('battle');
+
+  const p = PETS[G.pet];
+  $('enemy-emoji').textContent = monster.emoji;
+  $('enemy-name').textContent = monster.name + ' (Lv.' + monster.lvReq + ')';
+  $('pet-emoji').textContent = p.emoji;
+  $('pet-name').textContent = p.name;
+  updateBattleUI();
+
+  $('battle-msg').textContent = monster.name + ' が あらわれた！';
+  showBattleActions();
+}
+
+function updateBattleUI() {
+  const p = PETS[G.pet];
+  const ePerc = Math.max(0, G.enemyHP / G.enemyMaxHP * 100);
+  const pPerc = Math.max(0, G.petHP / G.petMaxHP * 100);
+  $('enemy-hp').style.width = ePerc + '%';
+  $('enemy-hp').className = 'hp-fill' + (ePerc < 30 ? ' low' : '');
+  $('enemy-hp-text').textContent = Math.max(0,G.enemyHP) + '/' + G.enemyMaxHP;
+  $('pet-hp').style.width = pPerc + '%';
+  $('pet-hp').className = 'hp-fill' + (pPerc < 30 ? ' low' : '');
+  $('pet-hp-text').textContent = Math.max(0,G.petHP) + '/' + G.petMaxHP;
+}
+
+function showBattleActions() {
+  const p = PETS[G.pet];
+  $('battle-actions').innerHTML = `
+    <button class="battle-btn atk" onclick="playerAttack('skill1')">${p.skill1}</button>
+    <button class="battle-btn special" onclick="playerAttack('skill2')">${p.skill2}</button>
+  `;
+}
+
+function playerAttack(skill) {
+  if (!G.battleActive) return;
+  G.battleActive = false;
+  const p = PETS[G.pet];
+  const m = G.currentEnemy;
+  $('battle-actions').innerHTML = '';
+
+  if (skill === 'skill1') {
+    // Normal attack
+    const dmg = Math.max(1, p.atk + Math.floor(Math.random() * 4) - m.def / 2);
+    G.enemyHP -= dmg;
+    playSfx('hit');
+    $('battle-msg').textContent = p.name + 'の ' + p.skill1 + '！ ' + dmg + ' ダメージ！';
+  } else {
+    // Special
+    switch(p.s2type) {
+      case 'dodge':
+        $('battle-msg').textContent = p.name + 'は ' + p.skill2 + 'で 身をかわす体勢！';
+        // Next enemy attack will miss
+        G._dodgeNext = true;
+        break;
+      case 'buff':
+        p.atk += 3;
+        playSfx('heal');
+        $('battle-msg').textContent = p.name + 'の ' + p.skill2 + '！ 攻撃力が あがった！';
+        break;
+      case 'heal':
+        const healAmt = 15;
+        G.petHP = Math.min(G.petMaxHP, G.petHP + healAmt);
+        playSfx('heal');
+        $('battle-msg').textContent = p.name + 'の ' + p.skill2 + '！ HPが ' + healAmt + ' 回復！';
+        break;
+    }
+  }
+
+  updateBattleUI();
+
+  if (G.enemyHP <= 0) {
+    setTimeout(() => battleVictory(), 1000);
+    return;
+  }
+
+  // Enemy turn
+  setTimeout(() => enemyAttack(), 1200);
+}
+
+function enemyAttack() {
+  const m = G.currentEnemy;
+  const p = PETS[G.pet];
+
+  if (G._dodgeNext) {
+    G._dodgeNext = false;
+    $('battle-msg').textContent = m.name + 'の こうげき！ …しかし ' + p.name + 'は かわした！';
+    updateBattleUI();
+    setTimeout(() => {
+      G.battleActive = true;
+      showBattleActions();
+    }, 1000);
+    return;
+  }
+
+  const dmg = Math.max(1, m.atk + Math.floor(Math.random() * 3) - p.def / 2);
+  G.petHP -= dmg;
+  playSfx('hit');
+  $('battle-msg').textContent = m.name + 'の こうげき！ ' + dmg + ' ダメージ！';
+  updateBattleUI();
+
+  if (G.petHP <= 0) {
+    setTimeout(() => {
+      $('battle-msg').textContent = p.name + 'は たおれてしまった…';
+      // Auto-revive for kids (easy mode)
+      setTimeout(() => {
+        G.petHP = Math.floor(G.petMaxHP * 0.5);
+        updateBattleUI();
+        $('battle-msg').textContent = p.name + 'は 気合いで 復活した！ もう一度！';
+        setTimeout(() => {
+          G.battleActive = true;
+          showBattleActions();
+        }, 1000);
+      }, 1500);
+    }, 1000);
+    return;
+  }
+
+  setTimeout(() => {
+    G.battleActive = true;
+    showBattleActions();
+  }, 1000);
+}
+
+function battleVictory() {
+  stopBGM();
+  playSfx('victory');
+  spawnConfetti();
+  const m = G.currentEnemy;
+  G.defeatedMonsters.push(m.id);
+  G.team.push(m.id);
+
+  $('battle-msg').textContent = m.name + 'を たおした！';
+  $('battle-actions').innerHTML = '';
+
+  setTimeout(() => {
+    dialogueSequence([
+      ['👁️→😊', 'なかまに なりたい…'],
+      ['🎉', m.name + 'が なかまになった！'],
+      ['🎊', 'みんなで おいわい！🍰✨'],
+    ], () => {
+      spawnConfetti();
+      hide('battle');
+      gainExp(10);
+
+      if (G.defeatedMonsters.length >= 3) {
+        setTimeout(() => startPhase3(), 1000);
+      } else {
+        G.phase = 1;
+        showBlock('field');
+        show('hud');
+        $('dpad').style.display = 'block';
+        $('action-btn').style.display = 'block';
+        startBGM('field');
+        updateHUD();
+      }
+    });
+  }, 1500);
+}
+
+// ===== PHASE 3: BIKE =====
+function startPhase3() {
+  G.phase = 3;
+  G.bikeSection = 0;
+  stopBGM();
+  transition(() => {
+    hideAll();
+    dialogueSequence([
+      ['👧', 'みんなを たおした！ つぎは ともだちに あいにいこう！'],
+      ['👧', 'バイクに のって しゅっぱつ！🏍️'],
+    ], () => {
+      startBikeSection(0);
+    });
+  });
+}
+
+function startBikeSection(section) {
+  G.bikeSection = section;
+  G.bikeLane = 1;
+  G.bikeDistance = 0;
+  G.bikeTarget = 80 + section * 20;
+  G.bikeObstacles = [];
+  G.bikeRunning = true;
+
+  hideAll();
+  show('bike-scene');
+
+  const destinations = ['ゆなちゃんの家', 'はなちゃんの家', 'ひーちゃんの家'];
+  const bgColors = [
+    'linear-gradient(180deg,#87CEEB,#90EE90)',
+    'linear-gradient(180deg,#FFB6C1,#FFF0F5)',
+    'linear-gradient(180deg,#DDA0DD,#E6E6FA)',
+  ];
+
+  $('bike-scene').style.background = bgColors[section];
+  $('bike-road').style.background = 'linear-gradient(0deg,#555 0%,#777 100%)';
+
+  // Lane lines
+  $('bike-road').innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const lane = document.createElement('div');
+    lane.style.cssText = `position:absolute;left:0;right:0;height:2px;background:dashed;border-top:2px dashed #fff;top:${(i+1)*25}%;opacity:0.5;`;
+    $('bike-road').appendChild(lane);
+  }
+
+  const roadTop = window.innerHeight * 0.6;
+  const laneH = window.innerHeight * 0.4 / 3;
+  $('bike-player').style.left = '15%';
+  $('bike-player').style.top = roadTop + G.bikeLane * laneH + 'px';
+
+  startBGM('bike');
+  bikeLoop();
+}
+
+function bikeLoop() {
+  if (!G.bikeRunning) return;
+
+  G.bikeDistance += 0.5;
+  $('bike-distance').textContent = Math.floor(G.bikeDistance) + '/' + G.bikeTarget + 'm';
+
+  // Spawn obstacles
+  if (Math.random() < 0.03 + G.bikeSection * 0.01) {
+    const obs = document.createElement('div');
+    obs.className = 'bike-obstacle';
+    const obsTypes = ['🪨','🌳','📦','🚧'];
+    obs.textContent = obsTypes[Math.floor(Math.random() * obsTypes.length)];
+    const lane = Math.floor(Math.random() * 3);
+    const roadTop = window.innerHeight * 0.6;
+    const laneH = window.innerHeight * 0.4 / 3;
+    obs.style.right = '-40px';
+    obs.style.top = roadTop + lane * laneH + 'px';
+    obs.dataset.lane = lane;
+    $('bike-scene').appendChild(obs);
+    G.bikeObstacles.push(obs);
+  }
+
+  // Move obstacles
+  G.bikeObstacles.forEach(obs => {
+    const r = parseInt(obs.style.right) || 0;
+    obs.style.right = (r + 3 + G.bikeSection) + 'px';
+  });
+
+  // Remove off-screen
+  G.bikeObstacles = G.bikeObstacles.filter(obs => {
+    if (parseInt(obs.style.right) > window.innerWidth + 50) {
+      obs.remove();
+      return false;
+    }
+    return true;
+  });
+
+  // Collision check
+  const playerRect = $('bike-player').getBoundingClientRect();
+  G.bikeObstacles.forEach(obs => {
+    const obsRect = obs.getBoundingClientRect();
+    if (playerRect.right > obsRect.left && playerRect.left < obsRect.right &&
+        playerRect.bottom > obsRect.top && playerRect.top < obsRect.bottom) {
+      // Hit
+      playSfx('crash');
+      G.bikeDistance = Math.max(0, G.bikeDistance - 5);
+      obs.remove();
+      G.bikeObstacles = G.bikeObstacles.filter(o => o !== obs);
+      $('bike-player').style.opacity = '0.5';
+      setTimeout(() => $('bike-player').style.opacity = '1', 500);
+    }
+  });
+
+  // Check arrival
+  if (G.bikeDistance >= G.bikeTarget) {
+    G.bikeRunning = false;
+    stopBGM();
+    // Clean up obstacles
+    G.bikeObstacles.forEach(o => o.remove());
+    G.bikeObstacles = [];
+    setTimeout(() => bikeArrival(G.bikeSection), 500);
+    return;
+  }
+
+  requestAnimationFrame(bikeLoop);
+}
+
+// Bike lane change
+$('bike-up').addEventListener('click', () => {
+  if (G.bikeLane > 0) {
+    G.bikeLane--;
+    const roadTop = window.innerHeight * 0.6;
+    const laneH = window.innerHeight * 0.4 / 3;
+    $('bike-player').style.top = roadTop + G.bikeLane * laneH + 'px';
+  }
+});
+$('bike-down').addEventListener('click', () => {
+  if (G.bikeLane < 2) {
+    G.bikeLane++;
+    const roadTop = window.innerHeight * 0.6;
+    const laneH = window.innerHeight * 0.4 / 3;
+    $('bike-player').style.top = roadTop + G.bikeLane * laneH + 'px';
+  }
+});
+
+function bikeArrival(section) {
+  hide('bike-scene');
+  switch(section) {
+    case 0: visitYuna(); break;
+    case 1: visitHana(); break;
+    case 2: visitHi(); break;
+  }
+}
+
+// ===== FRIEND VISITS =====
+function visitYuna() {
+  G.friends.push('yuna');
+  transition(() => {
+    hideAll();
+    dialogueSequence([
+      ['👧🍪 ゆなちゃん', 'ひかりちゃん！ あそびに きてくれたの？'],
+      ['👧 ひかり', 'ゆなちゃん！ いっしょに あそぼう！'],
+      ['👧🍪 ゆなちゃん', 'おかしを つくろうよ！🍪'],
+    ], () => {
+      startMiniEvent('cookie');
+    });
+  });
+}
+
+function visitHana() {
+  G.friends.push('hana');
+  transition(() => {
+    hideAll();
+    dialogueSequence([
+      ['👧🌸 はなちゃん', 'まってたよ！ いっしょに おはなつみしよう🌸'],
+      ['👧 ひかり', 'はなちゃん！ きれいな おはながいっぱい！'],
+    ], () => {
+      startMiniEvent('flower');
+    });
+  });
+}
+
+function visitHi() {
+  G.friends.push('hi');
+  transition(() => {
+    hideAll();
+    dialogueSequence([
+      ['👧🎀 ひーちゃん', 'みんなで あつまろうよ！'],
+      ['👧 ひかり', 'ひーちゃん！ みんな いっしょだね！'],
+      ['👧🎀 ひーちゃん', 'つぎは おにわで あそぼう！'],
+    ], () => {
+      spawnConfetti();
+      setTimeout(() => startPhase4(), 1500);
+    });
+  });
+}
+
+// ===== MINI EVENTS =====
+function startMiniEvent(type) {
+  show('mini-event');
+  const content = $('mini-event-content');
+
+  if (type === 'cookie') {
+    content.innerHTML = `
+      <h2 style="color:#fff;">🍪 おかしづくり 🍪</h2>
+      <p style="color:#fff;">タップして おかしを つくろう！</p>
+      <div id="cookie-count" style="font-size:2rem;color:#fff;margin:20px 0;">0 / 5</div>
+      <button class="btn btn-primary" id="cookie-tap" style="font-size:2rem;padding:20px 40px;">🍪 まぜる！</button>
+    `;
+    $('mini-event').style.background = 'linear-gradient(180deg,#FFE4B5,#DEB887)';
+    let count = 0;
+    $('cookie-tap').onclick = () => {
+      count++;
+      playSfx('tap');
+      $('cookie-count').textContent = count + ' / 5';
+      if (count >= 5) {
+        $('cookie-tap').disabled = true;
+        setTimeout(() => {
+          hide('mini-event');
+          spawnConfetti();
+          dialogueSequence([
+            ['👧🍪 ゆなちゃん', 'おかし できたよ！おいしそう！🍪✨'],
+            ['👧 ひかり', 'やったー！'],
+            ['', 'ゆなちゃんが なかまに なった！'],
+          ], () => {
+            // Wait for transform
+            startWaitCounter();
+          });
+        }, 500);
+      }
+    };
+  } else if (type === 'flower') {
+    content.innerHTML = `
+      <h2 style="color:#fff;">🌸 おはなつみ 🌸</h2>
+      <p style="color:#fff;">おはなを タップして あつめよう！</p>
+      <div id="flower-count" style="font-size:1.2rem;color:#fff;margin:10px 0;">0 / 10</div>
+      <div id="flower-field" style="position:relative;width:100%;height:200px;"></div>
+    `;
+    $('mini-event').style.background = 'linear-gradient(180deg,#FFB6C1,#FFC0CB)';
+    let count = 0;
+    const field = $('flower-field');
+    function spawnFlower() {
+      const f = document.createElement('div');
+      f.style.cssText = `position:absolute;font-size:2rem;cursor:pointer;left:${Math.random()*80}%;top:${Math.random()*80}%;`;
+      const flowers = ['🌸','🌺','🌻','🌷','💐'];
+      f.textContent = flowers[Math.floor(Math.random() * flowers.length)];
+      f.onclick = () => {
+        count++;
+        playSfx('tap');
+        f.remove();
+        $('flower-count').textContent = count + ' / 10';
+        if (count < 10) spawnFlower();
+        else {
+          setTimeout(() => {
+            hide('mini-event');
+            spawnConfetti();
+            dialogueSequence([
+              ['👧🌸 はなちゃん', 'いっぱい あつまったね！🌸✨'],
+              ['', 'はなちゃんが なかまに なった！'],
+            ], () => {
+              startBikeSection(2);
+            });
+          }, 500);
+        }
+      };
+      field.appendChild(f);
+    }
+    for (let i = 0; i < 4; i++) spawnFlower();
+  }
+}
+
+// ===== WAIT COUNTER (Transform) =====
+function startWaitCounter() {
+  show('wait-counter');
+  $('wait-counter').style.background = 'rgba(0,0,0,0.85)';
+  let count = 5;
+  $('wait-timer').textContent = count;
+  const interval = setInterval(() => {
+    count--;
+    $('wait-timer').textContent = count;
+    if (count <= 0) {
+      clearInterval(interval);
+      G.canTransform = true;
+      playSfx('levelup');
+      hide('wait-counter');
+      dialogueSequence([
+        ['✨', '変身の力が めざめた！'],
+        ['✨', PETS[G.pet].emoji + 'に 変身できるようになった！'],
+      ], () => {
+        G.transformed = true;
+        G.transformType = G.pet;
+        startBikeSection(1);
+      });
+    }
+  }, 1000);
+}
+
+// ===== PHASE 4: GARDEN =====
+function startPhase4() {
+  G.phase = 4;
+  stopBGM();
+  transition(() => {
+    hideAll();
+    startBGM('garden');
+    show('garden');
+    const sunsetProgress = { v: 0 };
+
+    $('garden-content').innerHTML = `
+      <h2 style="color:#fff;">🏡 おにわで あそぼう！ 🌳</h2>
+      <p style="color:#fff;font-size:1rem;">🏃 かけっこ！ タップれんだで はしれ！</p>
+      <div id="race-chars" style="font-size:2rem;margin:15px 0;">
+        <span id="race-hikari" style="display:inline-block;">👧</span>
+        <span style="margin-left:20px;">👧🍪 👧🌸 👧🎀</span>
+      </div>
+      <div id="race-bar"><div id="race-fill"></div></div>
+      <div id="race-tap" style="color:#fff;">タップして はしろう！</div>
+      <button class="btn btn-primary" id="race-btn" style="margin-top:15px;font-size:1.5rem;padding:15px 40px;">🏃 はしる！</button>
+    `;
+
+    // Sunset transition
+    let gardenProg = 0;
+    $('garden').style.background = 'linear-gradient(180deg,#87CEEB,#90EE90)';
+
+    $('race-btn').onclick = () => {
+      gardenProg += 2;
+      playSfx('tap');
+      $('race-fill').style.width = Math.min(100, gardenProg) + '%';
+      $('race-hikari').style.transform = `translateX(${gardenProg}px)`;
+
+      // Sunset transition
+      const t = Math.min(1, gardenProg / 100);
+      const r = Math.floor(135 + t * 120);
+      const g = Math.floor(206 - t * 100);
+      const b = Math.floor(235 - t * 150);
+      const r2 = Math.floor(144 + t * 60);
+      const g2 = Math.floor(238 - t * 100);
+      const b2 = Math.floor(144 - t * 50);
+      $('garden').style.background = `linear-gradient(180deg,rgb(${r},${g},${b}),rgb(${r2},${g2},${b2}))`;
+
+      if (gardenProg >= 100) {
+        $('race-btn').disabled = true;
+        $('race-tap').textContent = 'ゴール！🎉';
+        spawnConfetti();
+        setTimeout(() => {
+          dialogueSequence([
+            ['🎉', 'みんなで たのしく あそんだ！'],
+            ['👧🍪 ゆなちゃん', 'たのしかったね！'],
+            ['👧🌸 はなちゃん', 'もう ゆうがたかぁ…🌅'],
+            ['👧🎀 ひーちゃん', 'つぎは… ひかりちゃんの たんじょうびだよ！🎂'],
+          ], () => {
+            stopBGM();
+            setTimeout(() => startPhase5(), 1000);
+          });
+        }, 1000);
+      }
+    };
+  });
+}
+
+// ===== PHASE 5: BIRTHDAY → HORROR =====
+function startPhase5() {
+  G.phase = 5;
+  transition(() => {
+    hideAll();
+    show('birthday');
+    $('birthday').style.background = 'linear-gradient(180deg,#1a1a2e,#16213e)';
+    startBGM('birthday');
+
+    $('birthday-content').innerHTML = `
+      <div style="font-size:1.5rem;color:#fff;margin-bottom:20px;">🌙 よるに なりました</div>
+      <div style="font-size:1rem;color:#ddd;margin-bottom:30px;">おへやに みんなが あつまっています</div>
+      <div style="font-size:1.2rem;color:#FFD700;margin-bottom:20px;">「ひかりちゃん、<br>おたんじょうび おめでとう！🎂🎉」</div>
+      <div style="margin:20px 0;">
+        <span class="candle">🕯️</span>
+        <span style="font-size:3rem;">🎂</span>
+        <span class="candle">🕯️</span>
+      </div>
+      <p style="color:#ccc;margin-bottom:15px;">ろうそくを ふきけそう！</p>
+      <button class="btn btn-primary" id="blow-btn">ふーっ！🌬️</button>
+    `;
+
+    $('blow-btn').onclick = () => {
+      playSfx('tap');
+      G.candlesLit = false;
+      // Candles out
+      document.querySelectorAll('.candle').forEach(c => {
+        c.textContent = '🕯️';
+        c.style.animation = 'none';
+        c.style.opacity = '0.3';
+      });
+      spawnConfetti();
+      $('blow-btn').remove();
+
+      setTimeout(() => {
+        $('birthday-content').innerHTML += `
+          <div style="color:#FFD700;font-size:1.2rem;margin-top:20px;">「プレゼントだよ！ あけて！🎁」</div>
+          <div id="present-box" style="margin-top:20px;">🎁</div>
+        `;
+        $('present-box').onclick = () => openPresent();
+      }, 1500);
+    };
+  });
+}
+
+function openPresent() {
+  stopBGM();
+  $('present-box').style.animation = 'none';
+  $('present-box').textContent = '📦';
+
+  setTimeout(() => {
+    // Horror reveal
+    $('birthday-content').innerHTML = `
+      <div style="font-size:4rem;margin-bottom:20px;">❤️</div>
+      <div style="color:#ff0000;font-size:1.2rem;line-height:1.8;">
+        なかには みんなの<br>
+        <span style="font-size:1.5rem;font-weight:bold;">心臓が はいっていた</span>
+      </div>
+    `;
+
+    $('horror-overlay').classList.add('active');
+    $('birthday').style.background = 'linear-gradient(180deg,#2d0000,#1a0000)';
+
+    // Heartbeat
+    let hbInterval = setInterval(() => playSfx('heartbeat'), 1500);
+
+    setTimeout(() => {
+      dialogueSequence([
+        ['👧', '…え？'],
+        ['', 'ともだちの すがたが きえている'],
+        ['', 'ペットたちも きえている'],
+        ['👧', 'これは…みんなの…？'],
+      ], () => {
+        clearInterval(hbInterval);
+        setTimeout(() => startEscape(), 1000);
+      });
+    }, 2000);
+  }, 1500);
+}
+
+// ===== ESCAPE SCENE =====
+function startEscape() {
+  hideAll();
+  $('horror-overlay').classList.remove('active');
+  show('escape');
+  $('escape').style.display = 'flex';
+  startBGM('escape');
+
+  // Place random eyes
+  $('escape').querySelectorAll('.escape-eye').forEach(e => e.remove());
+  const eyeCount = 5 + G.loop * 3;
+  for (let i = 0; i < eyeCount; i++) {
+    const eye = document.createElement('div');
+    eye.className = 'escape-eye';
+    eye.textContent = '👁️';
+    eye.style.left = (20 + Math.random() * 70) + '%';
+    eye.style.top = (10 + Math.random() * 70) + '%';
+    eye.style.animationDelay = Math.random() * 5 + 's';
+    eye.style.animationDuration = (2 + Math.random() * 3) + 's';
+    $('escape').appendChild(eye);
+  }
+
+  // Footstep sounds
+  let steps = 0;
+  const stepInterval = setInterval(() => {
+    playNote(100 + Math.random() * 50, 0.1, 'triangle', 0.08);
+    steps++;
+  }, 400);
+
+  // Auto-scroll for a while, then loop
+  setTimeout(() => {
+    clearInterval(stepInterval);
+    stopBGM();
+    startLoop();
+  }, 8000);
+}
+
+// ===== LOOP =====
+function startLoop() {
+  G.loop++;
+  hideAll();
+  show('loop-msg');
+  $('loop-msg').style.display = 'flex';
+
+  $('loop-msg').innerHTML = `
+    <p style="font-size:0.9rem;opacity:0.5;">…</p>
+    <p style="font-size:1rem;margin:20px 0;">あさに なっている。</p>
+    <p style="font-size:1rem;">どうぶつたちが いる。ともだちも いる。</p>
+    <p style="font-size:1rem;margin-top:20px;">なにごとも なかったかのように。</p>
+    <p style="font-size:0.85rem;color:#aaa;margin-top:30px;">「ここには たくさんの どうぶつが います。<br>みんなで たのしく すごしています。」</p>
+    <button class="btn btn-primary" id="loop-continue" style="margin-top:30px;">つづける</button>
+    <p style="font-size:0.8rem;color:#666;margin-top:15px;">〜 ${G.loop + 1}しゅうめ 〜</p>
+  `;
+
+  // Loop 4+: scary message
+  if (G.loop >= 3) {
+    $('loop-msg').innerHTML += `<p style="font-size:0.75rem;color:#800;margin-top:10px;">「これは ずっと つづきます。たのしく やってくださいね😊」</p>`;
+  }
+
+  $('loop-continue').onclick = () => {
+    playSfx('tap');
+    transition(() => {
+      resetForLoop();
+      startPhase1();
+    });
+  };
+}
+
+function resetForLoop() {
+  G.phase = 0;
+  G.level = 1;
+  G.exp = 0;
+  G.expNext = 10;
+  G.petHP = G.petMaxHP;
+  G.petSelected = false;
+  G.pet = null;
+  G.team = [];
+  G.friends = [];
+  G.transformed = false;
+  G.canTransform = false;
+  G.defeatedMonsters = [];
+  G.playerX = 5;
+  G.playerY = 5;
+  G.battleActive = false;
+  G.gardenProgress = 0;
+}
+
+// ===== LETTER / TRUE ENDING =====
+function openLetterScreen() {
+  hideAll();
+  show('letter-screen');
+  playSfx('door');
+
+  $('letter-content').innerHTML = `
+    <p style="font-weight:bold;margin-bottom:15px;">📜 てがみ</p>
+    <p>ひかりちゃんへ。</p>
+    <p style="margin-top:10px;">これは ゆめです。</p>
+    <p>めを さましてください。</p>
+    <p style="margin-top:15px;color:#888;">「はこを あけなければ<br>よかったのに。」</p>
+  `;
+
+  $('letter-choices').innerHTML = `
+    <button class="btn btn-primary" id="choice-wake">A: めを さます</button>
+    <button class="btn btn-secondary" id="choice-stay">B: ゆめの なかに いる</button>
+  `;
+
+  $('choice-wake').onclick = () => {
+    playSfx('select');
+    trueEnding();
+  };
+
+  $('choice-stay').onclick = () => {
+    playSfx('tap');
+    hide('letter-screen');
+    showBlock('field');
+    show('hud');
+    $('dpad').style.display = 'block';
+    $('action-btn').style.display = 'block';
+    startBGM('field');
+    G.playerX = 5;
+    G.playerY = 5;
+    updatePlayerPos();
+  };
+}
+
+function trueEnding() {
+  hideAll();
+  show('true-ending');
+  $('true-ending').style.background = 'linear-gradient(180deg,#FFE4B5,#FFF8DC)';
+  stopBGM();
+
+  // Happy music
+  setTimeout(() => {
+    [523,587,659,784,880,1047].forEach((f,i) => setTimeout(() => playNote(f, 0.5, 'sine', 0.08), i * 300));
+  }, 1000);
+
+  $('true-ending').innerHTML = `
+    <h2 style="color:#333;margin-bottom:20px;">✨ 真エンディング ✨</h2>
+    <p style="color:#555;font-size:1rem;">ひかりちゃんは めを さました。</p>
+    <p style="color:#555;font-size:1.1rem;margin-top:15px;">「ゆなちゃん！ はなちゃん！ ひーちゃん！<br>…よかった、みんな いる」</p>
+    <p style="color:#333;font-size:1rem;margin-top:20px;">👧🍪「ひかりちゃん おはよう！<br>きょうは おたんじょうびだよ🎂」</p>
+    <div style="font-size:3rem;margin:20px 0;">🎂✨🎉</div>
+    <p style="color:#555;font-size:1rem;">こんどは ほんものの たんじょうびパーティー。</p>
+    <p style="color:#555;font-size:1rem;margin-top:10px;">プレゼントの はこを あけると…</p>
+    <div style="font-size:3rem;margin:15px 0;">🧸</div>
+    <p style="color:#333;font-size:1.1rem;font-weight:bold;">かわいい ペットの ぬいぐるみが はいっていた！</p>
+    <p style="color:#FF6B9D;font-size:1.3rem;font-weight:bold;margin-top:20px;">「ハッピーバースデー！🎉」</p>
+    <button class="btn btn-primary" id="true-end-btn" style="margin-top:25px;">おわり</button>
+  `;
+
+  spawnConfetti();
+  setTimeout(spawnConfetti, 1500);
+
+  $('true-end-btn').onclick = () => {
+    location.reload();
+  };
+}
+
+// ===== HIDE ALL =====
+function hideAll() {
+  ['field','hud','battle','bike-scene','mini-event','wait-counter','garden',
+   'birthday','escape','loop-msg','letter-screen','true-ending','pet-select','dialogue'].forEach(id => {
+    $(id).style.display = 'none';
+  });
+  $('dpad').style.display = 'none';
+  $('action-btn').style.display = 'none';
+  $('horror-overlay').classList.remove('active');
+}
+
+// ===== START GAME =====
+$('start-btn').addEventListener('click', () => {
+  initAudio();
+  playSfx('select');
+  hide('title-screen');
+  startPhase1();
+});
+
+function startPhase1() {
+  G.phase = 1;
+  hideAll();
+  showBlock('field');
+
+  buildField();
+  startBGM('field');
+
+  // First time: show intro then pet select
+  if (!G.petSelected) {
+    dialogueSequence([
+      ['', 'ここには たくさんの どうぶつが います。'],
+      ['', 'みんなで たのしく すごしています。'],
+      ['', 'まずは ペットを えらぼう！'],
+    ], () => {
+      show('pet-select');
+    });
+  } else {
+    // Returning from loop
+    show('hud');
+    $('dpad').style.display = 'block';
+    $('action-btn').style.display = 'block';
+    updateHUD();
+
+    dialogueSequence([
+      ['', 'まずは ペットを えらぼう！'],
+    ], () => {
+      show('pet-select');
+    });
+  }
+}
+
+// ===== ACTION BUTTON =====
+$('action-btn').addEventListener('click', () => {
+  // Check nearby entities
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const tileW = w / G.fieldW;
+  const tileH = h / G.fieldH;
+
+  let found = false;
+  G.entities.forEach((ent, idx) => {
+    if (Math.abs(ent.x - G.playerX) <= 1 && Math.abs(ent.y - G.playerY) <= 1) {
+      const animal = ANIMALS[idx];
+      if (animal) {
+        const msgs = LOOP_ANIMALS_MSGS[Math.min(G.loop + 1, 4)];
+        const msg = msgs ? msgs[idx % msgs.length] : animal.msg;
+        showDialogue(animal.emoji, msg, () => {
+          hideDialogue();
+          gainExp(3);
+        });
+        found = true;
+      }
+    }
+  });
+
+  if (!found) {
+    showDialogue('', 'ちかくに だれも いないよ', () => hideDialogue());
+  }
+});
+
+// ===== WINDOW RESIZE =====
+window.addEventListener('resize', () => {
+  if (G.phase === 1) {
+    buildField();
+  }
+});
+</script>
+</body>
+</html>
